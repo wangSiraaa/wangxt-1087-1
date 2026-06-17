@@ -10,6 +10,7 @@ interface BoardingRecordAttributes {
   travelDate: string;
   boardedAt: Date;
   driverId?: number;
+  isWaitlistPromoted?: boolean;
 }
 
 interface BoardingRecordCreationAttributes extends Optional<BoardingRecordAttributes, 'id' | 'driverId'> {}
@@ -23,6 +24,7 @@ class BoardingRecord extends Model<BoardingRecordAttributes, BoardingRecordCreat
   public travelDate!: string;
   public boardedAt!: Date;
   public driverId?: number;
+  public isWaitlistPromoted?: boolean;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
@@ -66,6 +68,11 @@ BoardingRecord.init(
       type: DataTypes.INTEGER,
       allowNull: true,
       references: { model: 'users', key: 'id' },
+    },
+    isWaitlistPromoted: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: false,
     },
   },
   {

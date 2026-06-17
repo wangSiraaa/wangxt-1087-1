@@ -248,9 +248,11 @@ table tr:hover {
 .badge-cancelled { background: #fee2e2; color: #991b1b; }
 .badge-boarded { background: #dbeafe; color: #1e40af; }
 .badge-no_show { background: #f1f5f9; color: #475569; }
+.badge-released { background: #f0fdf4; color: #166534; }
 .badge-admin { background: #ede9fe; color: #5b21b6; }
 .badge-driver { background: #e0e7ff; color: #3730a3; }
 .badge-employee { background: #dbeafe; color: #1e40af; }
+.badge-boarding { background: #dbeafe; color: #1e40af; }
 
 .route-card {
   border: 1px solid var(--border);

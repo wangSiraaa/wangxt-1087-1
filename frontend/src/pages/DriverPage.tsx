@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api, RouteType, BookingType, UserType, BoardingRecordType } from '../api';
+import { api, RouteType, BookingType, UserType, BoardingRecordType, DriverBoardingInfoType } from '../api';
 import dayjs from 'dayjs';
 
 interface Props {
@@ -58,7 +58,7 @@ function ConfirmBoarding({ currentUser, showToast }: { currentUser: UserType; sh
   const [routes, setRoutes] = useState<RouteType[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<number>(0);
   const [travelDate, setTravelDate] = useState(dayjs().format('YYYY-MM-DD'));
-  const [bookings, setBookings] = useState<BookingType[]>([]);
+  const [boardingList, setBoardingList] = useState<DriverBoardingInfoType[]>([]);
 
   useEffect(() => {
     api.getRoutes().then((all) => {
@@ -71,8 +71,8 @@ function ConfirmBoarding({ currentUser, showToast }: { currentUser: UserType; sh
   const load = useCallback(async () => {
     if (!selectedRoute || !travelDate) return;
     try {
-      const b = await api.getRouteBookings(selectedRoute, travelDate);
-      setBookings(b);
+      const b = await api.getDriverBoardingList(selectedRoute, travelDate);
+      setBoardingList(b);
     } catch (e: any) {
       showToast(e.message, 'error');
     }
@@ -80,19 +80,21 @@ function ConfirmBoarding({ currentUser, showToast }: { currentUser: UserType; sh
 
   useEffect(() => { load(); }, [load]);
 
-  const confirmBoarding = async (booking: BookingType) => {
+  const confirmBoarding = async (info: DriverBoardingInfoType) => {
     try {
-      await api.confirmBoarding(booking.id, currentUser.id);
-      showToast(`${booking.user?.name || '员工'}已确认上车`);
+      await api.confirmBoarding(info.bookingId, currentUser.id);
+      showToast(`${info.userName}已确认上车`);
       load();
     } catch (e: any) {
       showToast(e.message, 'error');
     }
   };
 
-  const confirmedBookings = bookings.filter((b) => b.status === 'confirmed');
-  const waitlistBookings = bookings.filter((b) => b.status === 'waitlist');
-  const boardedBookings = bookings.filter((b) => b.status === 'boarded');
+  const pendingList = boardingList.filter((b) => b.status === 'confirmed');
+  const boardedList = boardingList.filter((b) => b.status === 'boarded');
+  const releasedList = boardingList.filter((b) => b.status === 'released' || b.status === 'cancelled');
+  const promotedCount = boardingList.filter((b) => b.isWaitlistPromoted).length;
+  const leaveReleasedCount = boardingList.filter((b) => b.isLeaveReleased).length;
 
   return (
     <div>
@@ -112,22 +114,52 @@ function ConfirmBoarding({ currentUser, showToast }: { currentUser: UserType; sh
       </div>
 
       <div className="stat-grid">
-        <div className="stat-card"><div className="value" style={{ color: '#16a34a' }}>{confirmedBookings.length}</div><div className="label">待上车</div></div>
-        <div className="stat-card"><div className="value" style={{ color: '#d97706' }}>{waitlistBookings.length}</div><div className="label">候补中</div></div>
-        <div className="stat-card"><div className="value" style={{ color: '#2563eb' }}>{boardedBookings.length}</div><div className="label">已上车</div></div>
+        <div className="stat-card"><div className="value" style={{ color: '#16a34a' }}>{pendingList.length}</div><div className="label">待上车</div></div>
+        <div className="stat-card"><div className="value" style={{ color: '#8b5cf6' }}>{promotedCount}</div><div className="label">候补转正</div></div>
+        <div className="stat-card"><div className="value" style={{ color: '#f59e0b' }}>{leaveReleasedCount}</div><div className="label">请假释放</div></div>
+        <div className="stat-card"><div className="value" style={{ color: '#2563eb' }}>{boardedList.length}</div><div className="label">已上车</div></div>
       </div>
 
-      {confirmedBookings.length > 0 && (
+      {pendingList.length > 0 && (
         <div className="card">
           <h3>待上车乘客</h3>
           <table>
-            <thead><tr><th>员工</th><th>站点</th><th>预约时间</th><th>操作</th></tr></thead>
+            <thead>
+              <tr>
+                <th>员工</th>
+                <th>工号</th>
+                <th>站点</th>
+                <th>类型</th>
+                <th>备注</th>
+                <th>操作</th>
+              </tr>
+            </thead>
             <tbody>
-              {confirmedBookings.map((b) => (
-                <tr key={b.id}>
-                  <td>{b.user?.name || '-'}</td>
-                  <td>{b.station?.name || '-'}</td>
-                  <td>{new Date(b.createdAt).toLocaleString()}</td>
+              {pendingList.map((b) => (
+                <tr key={b.bookingId} style={b.isWaitlistPromoted ? { background: '#faf5ff' } : undefined}>
+                  <td>{b.userName}</td>
+                  <td>{b.employeeId}</td>
+                  <td>{b.stationName}</td>
+                  <td>
+                    {b.isWaitlistPromoted ? (
+                      <span className="badge badge-confirmed">候补转正</span>
+                    ) : b.isLeaveReleased ? (
+                      <span className="badge badge-waitlist">递补名额</span>
+                    ) : (
+                      <span className="badge badge-boarding">正常预约</span>
+                    )}
+                  </td>
+                  <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                    {b.isWaitlistPromoted && b.promotedAt && (
+                      <div>递补于 {new Date(b.promotedAt).toLocaleString()}</div>
+                    )}
+                    {b.promotionReason && (
+                      <div>原因: {b.promotionReason === 'cancel' ? '用户取消' : b.promotionReason === 'leave' ? '请假释放' : b.promotionReason === 'rebook' ? '改签释放' : b.promotionReason}</div>
+                    )}
+                    {b.isLeaveReleased && b.releaseReason && (
+                      <div>释放原因: {b.releaseReason}</div>
+                    )}
+                  </td>
                   <td>
                     <button className="btn btn-success btn-sm" onClick={() => confirmBoarding(b)}>确认上车</button>
                   </td>
@@ -138,16 +170,34 @@ function ConfirmBoarding({ currentUser, showToast }: { currentUser: UserType; sh
         </div>
       )}
 
-      {boardedBookings.length > 0 && (
+      {boardedList.length > 0 && (
         <div className="card">
           <h3>已上车</h3>
           <table>
-            <thead><tr><th>员工</th><th>站点</th><th>上车时间</th></tr></thead>
+            <thead>
+              <tr>
+                <th>员工</th>
+                <th>工号</th>
+                <th>站点</th>
+                <th>类型</th>
+                <th>上车时间</th>
+              </tr>
+            </thead>
             <tbody>
-              {boardedBookings.map((b) => (
-                <tr key={b.id}>
-                  <td>{b.user?.name || '-'}</td>
-                  <td>{b.station?.name || '-'}</td>
+              {boardedList.map((b) => (
+                <tr key={b.bookingId} style={b.isWaitlistPromoted ? { background: '#faf5ff' } : undefined}>
+                  <td>{b.userName}</td>
+                  <td>{b.employeeId}</td>
+                  <td>{b.stationName}</td>
+                  <td>
+                    {b.isWaitlistPromoted ? (
+                      <span className="badge badge-confirmed">候补转正</span>
+                    ) : b.isLeaveReleased ? (
+                      <span className="badge badge-waitlist">递补名额</span>
+                    ) : (
+                      <span className="badge badge-boarding">正常预约</span>
+                    )}
+                  </td>
                   <td>{b.boardedAt ? new Date(b.boardedAt).toLocaleString() : '-'}</td>
                 </tr>
               ))}
@@ -156,7 +206,39 @@ function ConfirmBoarding({ currentUser, showToast }: { currentUser: UserType; sh
         </div>
       )}
 
-      {bookings.length === 0 && (
+      {releasedList.length > 0 && (
+        <div className="card">
+          <h3>已释放名额 ({releasedList.length})</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>员工</th>
+                <th>站点</th>
+                <th>状态</th>
+                <th>原因</th>
+                <th>时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              {releasedList.map((b) => (
+                <tr key={b.bookingId}>
+                  <td>{b.userName}</td>
+                  <td>{b.stationName}</td>
+                  <td>
+                    <span className={`badge badge-${b.status}`}>
+                      {b.status === 'released' ? '已释放' : b.status === 'cancelled' ? '已取消' : b.status}
+                    </span>
+                  </td>
+                  <td>{b.releaseReason || '-'}</td>
+                  <td>{b.releasedAt ? new Date(b.releasedAt).toLocaleString() : '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {boardingList.length === 0 && (
         <div className="empty-state"><div className="icon">📋</div><p>当日暂无预约</p></div>
       )}
     </div>

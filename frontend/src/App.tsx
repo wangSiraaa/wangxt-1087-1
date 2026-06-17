@@ -7,8 +7,11 @@ import DriverPage from './pages/DriverPage';
 const TABS_BY_ROLE: Record<string, { key: string; label: string }[]> = {
   admin: [
     { key: 'routes', label: '线路管理' },
+    { key: 'schedules', label: '班次维护' },
+    { key: 'extra-routes', label: '补班/改线' },
     { key: 'leaves', label: '请假管理' },
     { key: 'bookings', label: '预约总览' },
+    { key: 'overview', label: '运营总览' },
     { key: 'boarding', label: '上车记录' },
   ],
   employee: [

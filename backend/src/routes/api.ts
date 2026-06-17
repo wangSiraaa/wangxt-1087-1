@@ -69,6 +69,41 @@ router.get('/routes/:routeId/stations', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/routes/:routeId/schedules', async (req: Request, res: Response) => {
+  try {
+    const schedules = await shuttleService.getSchedulesByRouteId(Number(req.params.routeId), true);
+    res.json({ success: true, data: schedules });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/routes/:routeId/schedules', async (req: Request, res: Response) => {
+  try {
+    assertBody(req.body, 'dayType');
+    const schedule = await shuttleService.createSchedule(
+      Number(req.params.routeId),
+      req.body.dayType,
+      req.body,
+      req.body.createdBy
+    );
+    res.status(201).json({ success: true, data: schedule });
+  } catch (err: any) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/routes/:routeId/schedule-for-date', async (req: Request, res: Response) => {
+  try {
+    const travelDate = req.query.travelDate as string;
+    if (!travelDate) return res.status(400).json({ success: false, message: '缺少 travelDate' });
+    const schedule = await shuttleService.getScheduleForDate(Number(req.params.routeId), travelDate);
+    res.json({ success: true, data: schedule });
+  } catch (err: any) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
 router.post('/stations', async (req: Request, res: Response) => {
   try {
     assertBody(req.body, 'routeId', 'name', 'capacity');
@@ -100,9 +135,37 @@ router.delete('/stations/:id', async (req: Request, res: Response) => {
 router.get('/stations/:stationId/capacity', async (req: Request, res: Response) => {
   try {
     const travelDate = req.query.travelDate as string;
+    const routeId = req.query.routeId ? Number(req.query.routeId) : undefined;
     if (!travelDate) return res.status(400).json({ success: false, message: '缺少 travelDate' });
-    const cap = await shuttleService.getStationCapacity(Number(req.params.stationId), travelDate);
+    const cap = await shuttleService.getStationCapacity(Number(req.params.stationId), travelDate, routeId);
     res.json({ success: true, data: cap });
+  } catch (err: any) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/extra-routes', async (req: Request, res: Response) => {
+  try {
+    const travelDate = req.query.travelDate as string | undefined;
+    const routeId = req.query.routeId ? Number(req.query.routeId) : undefined;
+    const type = req.query.type as any;
+    const extraRoutes = await shuttleService.getExtraRoutes(travelDate, routeId, type);
+    res.json({ success: true, data: extraRoutes });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/extra-routes', async (req: Request, res: Response) => {
+  try {
+    assertBody(req.body, 'routeId', 'type', 'travelDate', 'departureTime', 'createdBy');
+    const extraRoute = await shuttleService.createExtraRoute(
+      req.body.routeId,
+      req.body.type,
+      req.body,
+      req.body.createdBy
+    );
+    res.status(201).json({ success: true, data: extraRoute });
   } catch (err: any) {
     res.status(400).json({ success: false, message: err.message });
   }
@@ -115,7 +178,8 @@ router.post('/bookings', async (req: Request, res: Response) => {
       req.body.userId,
       req.body.routeId,
       req.body.stationId,
-      req.body.travelDate
+      req.body.travelDate,
+      req.body.extraRouteId
     );
     res.status(201).json({ success: true, data: booking });
   } catch (err: any) {
@@ -126,9 +190,51 @@ router.post('/bookings', async (req: Request, res: Response) => {
 router.delete('/bookings/:id', async (req: Request, res: Response) => {
   try {
     const userId = Number(req.query.userId);
+    const reason = req.query.reason as string | undefined;
     if (!userId) return res.status(400).json({ success: false, message: '缺少 userId' });
-    const booking = await shuttleService.cancelBooking(Number(req.params.id), userId);
+    const booking = await shuttleService.cancelBooking(Number(req.params.id), userId, reason);
     res.json({ success: true, data: booking });
+  } catch (err: any) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/bookings/:id/waitlist', async (req: Request, res: Response) => {
+  try {
+    assertBody(req.body, 'userId', 'reason');
+    const booking = await shuttleService.convertToWaitlist(
+      Number(req.params.id),
+      req.body.userId,
+      req.body.reason
+    );
+    res.json({ success: true, data: booking });
+  } catch (err: any) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/bookings/:id/rebook', async (req: Request, res: Response) => {
+  try {
+    assertBody(req.body, 'userId', 'newRouteId', 'newStationId', 'newTravelDate', 'reason');
+    const result = await shuttleService.rebookBooking(
+      Number(req.params.id),
+      req.body.userId,
+      req.body.newRouteId,
+      req.body.newStationId,
+      req.body.newTravelDate,
+      req.body.reason
+    );
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/bookings/process-leaves', async (req: Request, res: Response) => {
+  try {
+    const travelDate = req.body.travelDate || new Date().toISOString().slice(0, 10);
+    const results = await shuttleService.processLeaveReleases(travelDate);
+    res.json({ success: true, data: results });
   } catch (err: any) {
     res.status(400).json({ success: false, message: err.message });
   }
@@ -150,6 +256,39 @@ router.get('/bookings/route/:routeId', async (req: Request, res: Response) => {
     if (!travelDate) return res.status(400).json({ success: false, message: '缺少 travelDate' });
     const bookings = await shuttleService.getBookingsByRouteAndDate(Number(req.params.routeId), travelDate);
     res.json({ success: true, data: bookings });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/bookings/route/:routeId/driver-boarding', async (req: Request, res: Response) => {
+  try {
+    const travelDate = req.query.travelDate as string;
+    if (!travelDate) return res.status(400).json({ success: false, message: '缺少 travelDate' });
+    const info = await shuttleService.getDriverBoardingList(Number(req.params.routeId), travelDate);
+    res.json({ success: true, data: info });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/bookings/route/:routeId/overview', async (req: Request, res: Response) => {
+  try {
+    const travelDate = req.query.travelDate as string;
+    if (!travelDate) return res.status(400).json({ success: false, message: '缺少 travelDate' });
+    const overview = await shuttleService.getOperationOverview(Number(req.params.routeId), travelDate);
+    res.json({ success: true, data: overview });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/bookings/route/:routeId/timeline', async (req: Request, res: Response) => {
+  try {
+    const travelDate = req.query.travelDate as string;
+    if (!travelDate) return res.status(400).json({ success: false, message: '缺少 travelDate' });
+    const timeline = await shuttleService.getTimeline(Number(req.params.routeId), travelDate);
+    res.json({ success: true, data: timeline });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -233,6 +372,31 @@ router.get('/boarding-records', async (req: Request, res: Response) => {
     const stationId = req.query.stationId ? Number(req.query.stationId) : undefined;
     const records = await shuttleService.getBoardingRecords(routeId, travelDate, stationId);
     res.json({ success: true, data: records });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/audit-logs', async (req: Request, res: Response) => {
+  try {
+    const bookingId = req.query.bookingId ? Number(req.query.bookingId) : undefined;
+    const userId = req.query.userId ? Number(req.query.userId) : undefined;
+    const routeId = req.query.routeId ? Number(req.query.routeId) : undefined;
+    const travelDate = req.query.travelDate as string | undefined;
+    const logs = await shuttleService.getAuditLogs(bookingId, userId, routeId, travelDate);
+    res.json({ success: true, data: logs });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/waitlist-promotions', async (req: Request, res: Response) => {
+  try {
+    const routeId = req.query.routeId ? Number(req.query.routeId) : undefined;
+    const travelDate = req.query.travelDate as string | undefined;
+    const userId = req.query.userId ? Number(req.query.userId) : undefined;
+    const promotions = await shuttleService.getWaitlistPromotions(routeId, travelDate, userId);
+    res.json({ success: true, data: promotions });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }
