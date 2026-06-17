@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api, RouteType, StationType, BookingType, LeaveRecordType, BoardingRecordType, UserType, ScheduleType, ExtraRouteType, DayType, ExtraRouteType as ExtraRouteTypeEnum, OperationOverviewType, TimelineEventType } from '../api';
+import { api, RouteType, StationType, BookingType, LeaveRecordType, BoardingRecordType, UserType, ScheduleType, ExtraRouteInfoType, DayType, ExtraRouteType, OperationOverviewType, TimelineEventType } from '../api';
 
 interface Props {
   tab: string;
@@ -486,8 +486,8 @@ function dayTypeLabel(d: DayType) {
   return map[d] || d;
 }
 
-function extraRouteTypeLabel(t: ExtraRouteTypeEnum) {
-  const map: Record<ExtraRouteTypeEnum, string> = { makeup: '补班', reroute: '临时改线', temporary: '临时班次' };
+function extraRouteTypeLabel(t: ExtraRouteType) {
+  const map: Record<ExtraRouteType, string> = { makeup: '补班', reroute: '临时改线', temporary: '临时班次' };
   return map[t] || t;
 }
 
@@ -673,14 +673,14 @@ function ScheduleManager({ showToast }: { showToast: (msg: string, type?: 'succe
 
 function ExtraRouteManager({ showToast }: { showToast: (msg: string, type?: 'success' | 'error') => void }) {
   const [routes, setRoutes] = useState<RouteType[]>([]);
-  const [extraRoutes, setExtraRoutes] = useState<ExtraRouteType[]>([]);
-  const [filterType, setFilterType] = useState<ExtraRouteTypeEnum | ''>('');
+  const [extraRoutes, setExtraRoutes] = useState<ExtraRouteInfoType[]>([]);
+  const [filterType, setFilterType] = useState<ExtraRouteType | ''>('');
   const [filterDate, setFilterDate] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     routeId: 0,
     originalRouteId: 0,
-    type: 'makeup' as ExtraRouteTypeEnum,
+    type: 'makeup' as ExtraRouteType,
     travelDate: '',
     departureTime: '07:30',
     note: '',
@@ -764,7 +764,7 @@ function ExtraRouteManager({ showToast }: { showToast: (msg: string, type?: 'suc
       <div className="form-row" style={{ marginBottom: 16 }}>
         <div className="form-group">
           <label>类型</label>
-          <select value={filterType} onChange={(e) => setFilterType(e.target.value as ExtraRouteTypeEnum | '')}>
+          <select value={filterType} onChange={(e) => setFilterType(e.target.value as ExtraRouteType | '')}>
             <option value="">全部</option>
             <option value="makeup">补班</option>
             <option value="reroute">临时改线</option>
@@ -825,7 +825,7 @@ function ExtraRouteManager({ showToast }: { showToast: (msg: string, type?: 'suc
             <div className="form-row">
               <div className="form-group">
                 <label>类型 *</label>
-                <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as ExtraRouteTypeEnum })}>
+                <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as ExtraRouteType })}>
                   <option value="makeup">补班</option>
                   <option value="reroute">临时改线</option>
                   <option value="temporary">临时班次</option>

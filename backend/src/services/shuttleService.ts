@@ -73,7 +73,7 @@ export class ShuttleService {
     const options: any = { where: { isActive: true }, order: [['id', 'ASC']] };
     if (includeStations) {
       options.include = [
-        { model: Station, as: 'stations', order: [['sequence', 'ASC'] },
+        { model: Station, as: 'stations', order: [['sequence', 'ASC']] },
         { model: User, as: 'driver', attributes: ['id', 'name', 'employeeId'] },
       ];
     }
@@ -84,7 +84,7 @@ export class ShuttleService {
     const options: any = { where: { id } };
     if (includeStations) {
       options.include = [
-        { model: Station, as: 'stations', order: [['sequence', 'ASC'] },
+        { model: Station, as: 'stations', order: [['sequence', 'ASC']] },
         { model: User, as: 'driver', attributes: ['id', 'name', 'employeeId'] },
       ];
     }
@@ -336,10 +336,10 @@ export class ShuttleService {
   ) {
     const firstWaitlist = await Booking.findOne({
       where: {
-      stationId,
-      travelDate,
-      status: BookingStatus.WAITLIST,
-    },
+        stationId,
+        travelDate,
+        status: BookingStatus.WAITLIST,
+      },
       order: [['createdAt', 'ASC']],
       transaction: t,
     });
@@ -782,7 +782,7 @@ export class ShuttleService {
             travelDate,
             status: { [Op.in]: [BookingStatus.CONFIRMED, BookingStatus.WAITLIST] },
           },
-          include: [{ model: Route, as: 'route' },
+          include: [{ model: Route, as: 'route' }],
           transaction: t,
         });
 
@@ -922,8 +922,10 @@ export class ShuttleService {
         travelDate,
         status: BookingStatus.RELEASED,
       },
-      include: [{ model: User, as: 'user' },
-      { model: Station, as: 'station' }],
+      include: [
+        { model: User, as: 'user' },
+        { model: Station, as: 'station' },
+      ],
     });
 
     const result: DriverBoardingInfo[] = [];
@@ -972,7 +974,10 @@ export class ShuttleService {
 
     const promotions = await WaitlistPromotion.findAll({
       where: { routeId, travelDate },
-      include: [{ model: User, as: 'user' }, { model: User, as: 'promotedFromBooking', include: [{ model: User, as: 'user' }] }],
+      include: [
+        { model: User, as: 'user' },
+        { model: Booking, as: 'promotedFromBooking', include: [{ model: User, as: 'user' }] },
+      ],
     });
 
     const stations = route.stations || [];
@@ -1074,7 +1079,7 @@ export class ShuttleService {
 
     const auditLogs = await BookingAuditLog.findAll({
       where: { routeId, travelDate },
-      include: [{ model: User, as: 'user' },
+      include: [{ model: User, as: 'user' }],
       order: [['createdAt', 'ASC']],
     });
 
@@ -1232,7 +1237,7 @@ export class ShuttleService {
   async getUsers(role?: string) {
     const where: any = {};
     if (role) where.role = role;
-    return User.findAll({ where, order: [['id', 'ASC']]);
+    return User.findAll({ where, order: [['id', 'ASC']] });
   }
 
   async createUser(data: any) {

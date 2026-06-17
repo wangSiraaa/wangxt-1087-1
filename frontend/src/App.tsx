@@ -37,14 +37,37 @@ function App() {
   }, []);
 
   useEffect(() => {
-    api.getUsers().then((list) => {
-      setUsers(list);
-      if (list.length > 0) {
-        setCurrentUser(list[0]);
-        const tabs = TABS_BY_ROLE[list[0].role];
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const list = await api.getUsers();
+        if (cancelled) return;
+        setUsers(list);
+        if (list.length > 0) {
+          setCurrentUser(list[0]);
+          const tabs = TABS_BY_ROLE[list[0].role];
+          if (tabs.length > 0) setActiveTab(tabs[0].key);
+        }
+      } catch (e: any) {
+        if (cancelled) return;
+        showToast(`无法加载用户列表: ${e.message || '未知错误'}`, 'error');
+        const fallback: UserType = {
+          id: 1,
+          name: '测试管理员',
+          employeeId: 'ADMIN001',
+          role: 'admin',
+          phone: '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setUsers([fallback]);
+        setCurrentUser(fallback);
+        const tabs = TABS_BY_ROLE[fallback.role];
         if (tabs.length > 0) setActiveTab(tabs[0].key);
       }
-    }).catch(() => showToast('无法加载用户列表', 'error'));
+    };
+    load();
+    return () => { cancelled = true; };
   }, [showToast]);
 
   const handleUserChange = (userId: number) => {

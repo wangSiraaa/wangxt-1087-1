@@ -23,6 +23,14 @@ export enum DayType {
   HOLIDAY = 'holiday',
 }
 
+export enum ExtraRouteTypeEnum {
+  MAKEUP = 'makeup',
+  REROUTE = 'reroute',
+  TEMPORARY = 'temporary',
+}
+
+export type ExtraRouteType = 'makeup' | 'reroute' | 'temporary';
+
 export enum RescheduleType {
   TO_WAITLIST = 'to_waitlist',
   TO_MAKEUP = 'to_makeup',
@@ -43,8 +51,6 @@ export enum TimelineEventTypeEnum {
   RELEASED = 'released',
 }
 
-export type DayType = 'weekday' | 'weekend' | 'holiday';
-export type ExtraRouteType = 'makeup' | 'reroute' | 'temporary';
 export type PromotionReason = 'cancel' | 'leave' | 'no_show' | 'rebook' | 'extra_route';
 export type AuditAction = 'create' | 'cancel' | 'rebook' | 'waitlist' | 'promote' | 'board' | 'modify' | 'release';
 export type AuditChannel = 'web' | 'mobile' | 'api' | 'system';
@@ -99,7 +105,7 @@ export interface BookingType {
   routeId: number;
   stationId: number;
   travelDate: string;
-  status: 'confirmed' | 'waitlist' | 'cancelled' | 'boarded' | 'no_show';
+  status: 'confirmed' | 'waitlist' | 'cancelled' | 'boarded' | 'no_show' | 'released';
   waitlistPosition?: number;
   boardedAt?: string;
   cancelledAt?: string;
@@ -111,6 +117,12 @@ export interface BookingType {
   leaveReleasedAt?: string;
   lateReleasedAt?: string;
   noShowAt?: string;
+  isWaitlistPromoted?: boolean;
+  promotedAt?: string;
+  promotedReason?: string;
+  extraRouteId?: number;
+  releaseReason?: string;
+  releasedAt?: string;
   route?: RouteType;
   station?: StationType;
   user?: UserType;
@@ -197,16 +209,6 @@ export interface MakeupShiftType {
   stations?: StationType[];
 }
 
-export interface WaitlistPromotionType {
-  id: number;
-  bookingId: number;
-  promotedAt: string;
-  fromPosition: number;
-  reason: string;
-  createdAt: string;
-  booking?: BookingType;
-}
-
 export interface RescheduleRecordType {
   id: number;
   originalBookingId: number;
@@ -281,7 +283,7 @@ export interface ScheduleStationCapacityType {
   station?: StationType;
 }
 
-export interface ExtraRouteType {
+export interface ExtraRouteInfoType {
   id: number;
   routeId: number;
   originalRouteId?: number;
@@ -310,6 +312,7 @@ export interface WaitlistPromotionType {
   reason: PromotionReason;
   releasedByUserId?: number;
   promotedAt: string;
+  fromPosition?: number;
   createdAt: string;
   booking?: BookingType;
   user?: UserType;
@@ -507,10 +510,10 @@ export const api = {
     if (params?.routeId) p.set('routeId', String(params.routeId));
     if (params?.date) p.set('date', params.date);
     if (params?.type) p.set('type', params.type);
-    return request<ExtraRouteType[]>(`/extra-routes${p.toString() ? `?${p.toString()}` : ''}`);
+    return request<ExtraRouteInfoType[]>(`/extra-routes${p.toString() ? `?${p.toString()}` : ''}`);
   },
   createExtraRoute: (data: { routeId: number; originalRouteId?: number; type: ExtraRouteType; travelDate: string; departureTime: string; note?: string }) =>
-    request<ExtraRouteType>('/extra-routes', { method: 'POST', body: JSON.stringify(data) }),
+    request<ExtraRouteInfoType>('/extra-routes', { method: 'POST', body: JSON.stringify(data) }),
   convertToWaitlist: (bookingId: number, userId: number, reason?: string) =>
     request<BookingType>(`/bookings/${bookingId}/waitlist`, { method: 'POST', body: JSON.stringify({ userId, reason }) }),
   rebookBooking: (bookingId: number, data: { userId: number; newRouteId?: number; newStationId?: number; newTravelDate?: string; reason?: string }) =>

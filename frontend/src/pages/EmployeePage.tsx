@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api, RouteType, BookingType, UserType, CapacityInfo, ExtraRouteType, TimelineEventType } from '../api';
+import { api, RouteType, BookingType, UserType, CapacityInfo, ExtraRouteInfoType, TimelineEventType } from '../api';
 import dayjs from 'dayjs';
 
 interface Props {
@@ -206,7 +206,7 @@ function MyBookings({ currentUser, showToast }: { currentUser: UserType; showToa
   const [showTimelineModal, setShowTimelineModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<BookingType | null>(null);
   const [timeline, setTimeline] = useState<TimelineEventType[]>([]);
-  const [extraRoutes, setExtraRoutes] = useState<ExtraRouteType[]>([]);
+  const [extraRoutes, setExtraRoutes] = useState<ExtraRouteInfoType[]>([]);
   const [routes, setRoutes] = useState<RouteType[]>([]);
   const [rebookForm, setRebookForm] = useState({
     newRouteId: 0,
