@@ -231,14 +231,17 @@ export interface OperationOverview {
   routeName: string;
   travelDate: string;
   scheduleVersion: number;
+  scheduleDayType: DayType;
   totalCapacity: number;
   totalConfirmed: number;
   totalWaitlist: number;
   totalBoarded: number;
   totalReleased: number;
   stations: StationOccupancy[];
+  stationOccupancy: StationOccupancy[];
   lateReleases: LateReleaseInfo[];
   promotions: PromotionInfo[];
+  lastUpdated: string;
 }
 
 export interface StationOccupancy {
@@ -250,6 +253,7 @@ export interface StationOccupancy {
   waitlist: number;
   boarded: number;
   available: number;
+  occupancyRate: number;
 }
 
 export interface LateReleaseInfo {

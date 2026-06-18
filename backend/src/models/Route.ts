@@ -27,6 +27,10 @@ class Route extends Model<RouteAttributes, RouteCreationAttributes> implements R
   public isActive!: boolean;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
+
+  public driver?: any;
+  public stations?: any[];
+  public drivingRoutes?: any[];
 }
 
 Route.init(

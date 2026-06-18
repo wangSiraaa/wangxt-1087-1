@@ -42,7 +42,12 @@ async function startServer() {
     await sequelize.authenticate();
     console.log('数据库连接成功');
 
-    await sequelize.sync({ alter: true });
+    try {
+      await sequelize.sync({ alter: true });
+    } catch (alterErr: any) {
+      console.warn('sync alter 失败（SQLite 不支持复杂结构变更），改用常规 sync：', alterErr.message || alterErr.name);
+      await sequelize.sync();
+    }
     console.log('数据库同步完成');
 
     const User = (await import('./models/User')).default;

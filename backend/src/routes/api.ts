@@ -37,7 +37,8 @@ router.post('/routes', async (req: Request, res: Response) => {
     const full = await shuttleService.getRouteById(route.id, true);
     res.status(201).json({ success: true, data: full });
   } catch (err: any) {
-    res.status(400).json({ success: false, message: err.message });
+    console.error('[POST /routes] 错误详情:', err);
+    res.status(400).json({ success: false, message: err.message || String(err) });
   }
 });
 

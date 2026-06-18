@@ -20,21 +20,56 @@ export default function DriverPage({ tab, currentUser, showToast }: Props) {
 
 function MyRoute({ currentUser, showToast }: { currentUser: UserType; showToast: (msg: string, type?: 'success' | 'error') => void }) {
   const [routes, setRoutes] = useState<RouteType[]>([]);
+  const [drivers, setDrivers] = useState<UserType[]>([]);
+  const [loadError, setLoadError] = useState<string>('');
+  const [loaded, setLoaded] = useState(false);
+
+  const driverName = (route: RouteType) => {
+    if (route.driver?.name) return route.driver.name;
+    if (route.driverId) {
+      const rid = Number(route.driverId);
+      const d = drivers.find((x) => Number(x.id) === rid);
+      if (d) return d.name;
+    }
+    return '未分配';
+  };
 
   useEffect(() => {
-    api.getRoutes().then((all) => {
-      setRoutes(all.filter((r) => r.driverId === currentUser.id));
-    }).catch((e) => showToast(e.message, 'error'));
-  }, [currentUser.id, showToast]);
+    let cancelled = false;
+    const load = async () => {
+      try {
+        setLoaded(false);
+        setLoadError('');
+        const [all, drv] = await Promise.all([api.getRoutes(), api.getUsers('driver')]);
+        if (cancelled) return;
+        const uid = Number(currentUser.id);
+        const mine = all.filter((r) => Number(r.driverId) === uid || Number(r.driver?.id) === uid);
+        setRoutes(mine);
+        setDrivers(drv);
+        setLoaded(true);
+      } catch (e: any) {
+        if (cancelled) return;
+        const msg = e?.message || String(e) || '加载失败';
+        setLoadError(msg);
+        setLoaded(true);
+        showToast(msg, 'error');
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [currentUser.id]);
 
   return (
     <div>
       <h2>我的线路</h2>
+      {loadError && <div className="empty-state" style={{ color: 'var(--danger)', padding: 12 }}>加载错误: {loadError}</div>}
+      {!loaded && !loadError && <div className="empty-state"><div className="icon">⏳</div><p>加载中...</p></div>}
       {routes.map((route) => (
         <div key={route.id} className="driver-route-panel" style={{ marginBottom: 16 }}>
           <div className="panel-header">
             {route.name} · {route.direction === 'up' ? '上行' : '下行'} · 发车 {route.departureTime}
             {route.vehiclePlate && <span style={{ marginLeft: 12 }}>🚐 {route.vehiclePlate}</span>}
+            <span style={{ marginLeft: 12 }}>👤 司机: {driverName(route)}</span>
           </div>
           {(route.stations || []).sort((a, b) => a.sequence - b.sequence).map((s) => (
             <div key={s.id} className="driver-station-item">
@@ -47,7 +82,7 @@ function MyRoute({ currentUser, showToast }: { currentUser: UserType; showToast:
           ))}
         </div>
       ))}
-      {routes.length === 0 && (
+      {loaded && routes.length === 0 && !loadError && (
         <div className="empty-state"><div className="icon">🚍</div><p>暂未分配线路</p></div>
       )}
     </div>
@@ -62,7 +97,8 @@ function ConfirmBoarding({ currentUser, showToast }: { currentUser: UserType; sh
 
   useEffect(() => {
     api.getRoutes().then((all) => {
-      const mine = all.filter((r) => r.driverId === currentUser.id);
+      const uid = Number(currentUser.id);
+      const mine = all.filter((r) => Number(r.driverId) === uid || r.driver?.id === uid);
       setRoutes(mine);
       if (mine.length > 0) setSelectedRoute(mine[0].id);
     }).catch(() => {});
@@ -252,7 +288,8 @@ function BoardingHistory({ currentUser, showToast }: { currentUser: UserType; sh
   const load = useCallback(async () => {
     try {
       const r = await api.getBoardingRecords(undefined, filterDate || undefined);
-      const mine = r.filter((rec) => rec.driverId === currentUser.id || rec.route?.driverId === currentUser.id);
+      const uid = Number(currentUser.id);
+      const mine = r.filter((rec) => Number(rec.driverId) === uid || Number(rec.route?.driverId) === uid);
       setRecords(mine);
     } catch (e: any) {
       showToast(e.message, 'error');

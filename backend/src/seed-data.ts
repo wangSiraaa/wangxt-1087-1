@@ -46,6 +46,8 @@ export async function seedData() {
     driverId: driver1.id,
     isActive: true,
   });
+  route1.driverId = driver1.id;
+  await route1.save();
 
   const stations1 = [
     { name: '市中心站', sequence: 1, capacity: 30, arriveTime: '07:30', address: '市中心广场' },
@@ -67,6 +69,8 @@ export async function seedData() {
     driverId: driver2.id,
     isActive: true,
   });
+  route2.driverId = driver2.id;
+  await route2.save();
 
   const stations2 = [
     { name: '火车站', sequence: 1, capacity: 35, arriveTime: '07:45', address: '火车站东广场' },

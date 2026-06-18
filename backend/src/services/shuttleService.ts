@@ -70,30 +70,30 @@ export class ShuttleService {
   }
 
   async getRoutes(includeStations = false) {
-    const options: any = { where: { isActive: true }, order: [['id', 'ASC']] };
+    const options: any = { where: { isActive: true }, order: [['id', 'ASC']], include: [] };
+    options.include.push({ model: User, as: 'driver', attributes: ['id', 'name', 'employeeId', 'phone'] });
     if (includeStations) {
-      options.include = [
-        { model: Station, as: 'stations', order: [['sequence', 'ASC']] },
-        { model: User, as: 'driver', attributes: ['id', 'name', 'employeeId'] },
-      ];
+      options.include.push({ model: Station, as: 'stations', order: [['sequence', 'ASC']] });
     }
     return Route.findAll(options);
   }
 
   async getRouteById(id: number, includeStations = false) {
-    const options: any = { where: { id } };
+    const options: any = { where: { id }, include: [] };
+    options.include.push({ model: User, as: 'driver', attributes: ['id', 'name', 'employeeId', 'phone'] });
     if (includeStations) {
-      options.include = [
-        { model: Station, as: 'stations', order: [['sequence', 'ASC']] },
-        { model: User, as: 'driver', attributes: ['id', 'name', 'employeeId'] },
-      ];
+      options.include.push({ model: Station, as: 'stations', order: [['sequence', 'ASC']] });
     }
     return Route.findByPk(id, options);
   }
 
   async createRoute(data: any) {
     return sequelize.transaction(async (t) => {
-      const route = await Route.create(data, { transaction: t });
+      const payload = { ...data };
+      if (payload.driverId === 0 || payload.driverId === '' || payload.driverId === null) {
+        payload.driverId = null;
+      }
+      const route = await Route.create(payload, { transaction: t });
       if (data.stations && data.stations.length > 0) {
         const stations = data.stations.map((s: any, idx: number) => ({
           ...s,
@@ -140,7 +140,13 @@ export class ShuttleService {
     return sequelize.transaction(async (t) => {
       const route = await Route.findByPk(id, { transaction: t });
       if (!route) throw new Error('线路不存在');
-      await route.update(data, { transaction: t });
+      const payload = { ...data };
+      if (payload.driverId !== undefined) {
+        if (payload.driverId === 0 || payload.driverId === '' || payload.driverId === null) {
+          payload.driverId = null;
+        }
+      }
+      await route.update(payload, { transaction: t });
       if (data.stations) {
         await Station.destroy({ where: { routeId: id }, transaction: t });
         const stations = data.stations.map((s: any, idx: number) => ({
@@ -959,7 +965,10 @@ export class ShuttleService {
   }
 
   async getOperationOverview(routeId: number, travelDate: string) {
-    const route = await Route.findByPk(routeId, { include: [{ model: Station, as: 'stations', order: [['sequence', 'ASC'] }] });
+    const routeOpts: any = {
+      include: [{ model: Station, as: 'stations', order: [['sequence', 'ASC']] }],
+    };
+    const route = await Route.findByPk(routeId, routeOpts);
     if (!route) throw new Error('线路不存在');
 
     const schedule = await this.getScheduleForDate(routeId, travelDate);
@@ -1016,6 +1025,7 @@ export class ShuttleService {
         waitlist,
         boarded,
         available: Math.max(0, capacity - confirmed),
+        occupancyRate: capacity > 0 ? confirmed / capacity : 0,
       });
     }
 
@@ -1051,19 +1061,22 @@ export class ShuttleService {
       releasedByName: p.promotedFromBooking?.user?.name,
     }));
 
-    const overview: OperationOverview = {
+    const overview: any = {
       routeId,
       routeName: route.name,
       travelDate,
       scheduleVersion: schedule?.version || 1,
+      scheduleDayType: schedule?.dayType || 'weekday',
       totalCapacity,
       totalConfirmed,
       totalWaitlist,
       totalBoarded,
       totalReleased,
       stations: stationOccupancies,
+      stationOccupancy: stationOccupancies,
       lateReleases,
       promotions: promotionInfos,
+      lastUpdated: new Date().toISOString(),
     };
 
     return overview;
@@ -1107,7 +1120,7 @@ export class ShuttleService {
         type: 'promote',
         userId: promotion.userId,
         userName: promotion.user?.name,
-        description: `${promotion.user?.name} 候补转正（原因：${this.getPromotionReasonText(promotion.reason)}`,
+        description: `${promotion.user?.name} 候补转正（原因：${this.getPromotionReasonText(promotion.reason)}）`,
         details: promotion,
       });
     }
@@ -1126,7 +1139,9 @@ export class ShuttleService {
       modify: '修改预约',
       release: '释放名额',
     };
-    return `${log.user?.name || '用户'} ${actionMap[log.action] || log.action}${log.reason ? ` - ${log.reason}` : ''}${log.isReadonly ? ' [只读审计]' : ''}';
+    const reasonPart = log.reason ? ' - ' + log.reason : '';
+    const readonlyPart = log.isReadonly ? ' [只读审计]' : '';
+    return `${log.user?.name || '用户'} ${actionMap[log.action] || log.action}${reasonPart}${readonlyPart}`;
   }
 
   private getPromotionReasonText(reason: string): string {

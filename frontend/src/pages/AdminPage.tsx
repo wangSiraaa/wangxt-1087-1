@@ -32,6 +32,16 @@ function RouteManager({ showToast }: { showToast: (msg: string, type?: 'success'
     stations: [{ name: '', capacity: 20, arriveTime: '', address: '' }],
   });
 
+  const driverName = (route: RouteType) => {
+    if (route.driver?.name) return route.driver.name;
+    if (route.driverId) {
+      const rid = Number(route.driverId);
+      const d = drivers.find((x) => Number(x.id) === rid);
+      if (d) return d.name;
+    }
+    return '未分配';
+  };
+
   const load = useCallback(async () => {
     try {
       const [r, d] = await Promise.all([api.getRoutes(), api.getUsers('driver')]);
@@ -144,7 +154,7 @@ function RouteManager({ showToast }: { showToast: (msg: string, type?: 'success'
             <span>🚐 {route.vehiclePlate || '未分配'}</span>
             <span>🕐 发车 {route.departureTime}</span>
             <span>🕐 返程 {route.returnTime || '-'}</span>
-            <span>👤 司机: {route.driver?.name || '未分配'}</span>
+            <span>👤 司机: {driverName(route)}</span>
           </div>
           <div className="station-list">
             {(route.stations || []).sort((a, b) => a.sequence - b.sequence).map((s) => (
